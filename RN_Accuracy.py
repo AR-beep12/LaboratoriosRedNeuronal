@@ -3,8 +3,8 @@ import DnnLib
 import json
 
 #Cargar Entradas
-data = np.load("mnist_train.npz")
-test = np.load("mnist_test.npz")
+data = np.load("Datasets/mnist_train.npz")
+test = np.load("Datasets/mnist_test.npz")
 
 imagesD = data ['images']
 labelsD = data ['labels']
@@ -18,7 +18,7 @@ TIma = imagesT.reshape(imagesT.shape[0], -1) / 255.0
 layer1 = DnnLib.DenseLayer(784, 128, DnnLib.ActivationType.RELU)
 layer2 = DnnLib.DenseLayer(128, 10, DnnLib.ActivationType.SOFTMAX)
 
-with open ("mnist_mlp_pretty.json","r") as f:
+with open ("Datasets/mnist_mlp_pretty.json","r") as f:
     datos = json.load(f)
     
 capas = []
