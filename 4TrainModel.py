@@ -3,6 +3,7 @@ import DnnLib
 import json
 import argparse
 
+# cosas de argparser
 parser = argparse.ArgumentParser(description="Se puede incluir un archivo, si no se nombra uno el proceso se ejecuta con pesos aleatorios.")
 parser.add_argument(
     "-f", "--file",
@@ -14,7 +15,6 @@ parser.add_argument(
     type=str,
     help="Save the weights to a json file"
 )
-
 args = parser.parse_args()
 
 #Cargar Entradas
@@ -48,9 +48,8 @@ def AdjustLayers(nombre):
         print("Archivo no encontrado. Pesos Random")
 
 
-
 #Entrenar
-def train_minibatch(layers, optimizer, Entradas, y, targets, batch_size=128, epochs=5):
+def train_minibatch(layers, optimizer, Entradas, y, targets, batch_size, epochs):
     n_samples = Entradas.shape[0]
 
     for epoch in range(epochs):
@@ -61,20 +60,24 @@ def train_minibatch(layers, optimizer, Entradas, y, targets, batch_size=128, epo
         
         epoch_loss = 0.0
         n_batches = 0
-        # Process mini-batches
+        # Mini-batches
         for i in range(0, n_samples, batch_size):
             Entradas_batch = Entradas_shuffled[i:i+batch_size]
             y_batch = y_shuffled[i:i+batch_size]
+            
             #Forward
             f1 = layers[0].forward(Entradas_batch)
             output = layers[1].forward(f1)
             output_lin = layers[1].forward_linear(f1)
+            
             #Loss
             loss = DnnLib.cross_entropy(output, y_batch)
+            
             #Backpropagation
             grad = DnnLib.softmax_crossentropy_gradient(output_lin, y_batch)
             grad = layers[1].backward(grad)
             grad = layers[0].backward(grad)
+            
             #Update
             for layer in layers:
                 optimizer.update(layer)
@@ -99,7 +102,7 @@ def test(layers):
     accuracy = np.mean(predictions == labelsT)
     return accuracy
 
-
+#test
 def guardarEnArchivos(nombre):
     try:
         info = {
@@ -116,6 +119,7 @@ def guardarEnArchivos(nombre):
     except Exception as e:
         print("Error al guardar los pesos:", e)
 
+#probar
 if args.file:
     AdjustLayers(args.file)
 

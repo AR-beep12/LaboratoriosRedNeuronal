@@ -29,10 +29,13 @@ y[np.arange(labels.shape[0]), labels] = 1.0
 #Inicializar Capas y Optimizador
 capas = [
         DnnLib.DenseLayer(784, 128, DnnLib.ActivationType.RELU),
+        DnnLib.Dropout(dropout_rate=0.3),
         DnnLib.DenseLayer(128, 10, DnnLib.ActivationType.SOFTMAX)
     ]
 
 optimizer = DnnLib.Adam(learning_rate=0.001)
+capas[0].set_regularizer(DnnLib.RegularizerType.L2, 0.01)
+capas[2].set_regularizer(DnnLib.RegularizerType.L2, 0.01)
 
 def AdjustLayers(nombre):
     try:
@@ -40,9 +43,9 @@ def AdjustLayers(nombre):
             datos = json.load(f)
             
         capas[0].weights = np.array(datos['layers'][0]["W"]).T
-        capas[1].weights = np.array(datos['layers'][1]["W"]).T
+        capas[2].weights = np.array(datos['layers'][1]["W"]).T
         capas[0].bias = np.array(datos['layers'][0]["b"]).T
-        capas[1].bias = np.array(datos['layers'][1]["b"]).T
+        capas[2].bias = np.array(datos['layers'][1]["b"]).T
         print("Pesos cargados correctamente.")
     except FileNotFoundError:
         print("Archivo no encontrado. Pesos Random")
@@ -60,31 +63,41 @@ def train_minibatch(layers, optimizer, Entradas, y, targets, batch_size=128, epo
         y_shuffled = y[indices]
         
         epoch_loss = 0.0
+        reg_loss = 0.0
         n_batches = 0
         # Process mini-batches
         for i in range(0, n_samples, batch_size):
             Entradas_batch = Entradas_shuffled[i:i+batch_size]
             y_batch = y_shuffled[i:i+batch_size]
             #Forward
-            f1 = layers[0].forward(Entradas_batch)
-            output = layers[1].forward(f1)
-            output_lin = layers[1].forward_linear(f1)
+            f0 = layers[0].forward(Entradas_batch)
+            layers[1].training = True
+            f1 = layers[1].forward(f0)
+            output = layers[2].forward(f1)
+            output_lin = layers[2].forward_linear(f1)
+            
             #Loss
             loss = DnnLib.cross_entropy(output, y_batch)
+            reg_loss += layers[0].compute_regularization_loss()
+            reg_loss += layers[2].compute_regularization_loss()
+            print(f"loss {loss}, Reg Loss: {reg_loss:.6f}")
+            
             #Backpropagation
             grad = DnnLib.softmax_crossentropy_gradient(output_lin, y_batch)
+            grad = layers[2].backward(grad)
             grad = layers[1].backward(grad)
             grad = layers[0].backward(grad)
             #Update
             for layer in layers:
-                optimizer.update(layer)
+                if not hasattr(layer, 'training'):
+                    optimizer.update(layer)
                 
             epoch_loss += loss
             n_batches += 1
-        avg_loss = epoch_loss / n_batches
-        if epoch % 1 == 0:
-            accuracy = test(layers)
-            print(f"Epoch {epoch}, Avg Loss: {avg_loss:.6f}, Accuracy: {accuracy}")
+            
+        avg_loss = epoch_loss + reg_loss / n_batches
+        accuracy = test(layers)
+        print(f"Epoch {epoch}, Avg Loss: {avg_loss:.6f}, Accuracy: {accuracy}")
 
 def test(layers):
     data = np.load("Datasets/fashion_mnist_test.npz")
@@ -92,8 +105,10 @@ def test(layers):
     labelsT = data ['labels']
     entradas = imagesT.reshape(imagesT.shape[0], -1) / 255.0
     
-    s1 = layers[0].forward(entradas)
-    s2 = layers[1].forward(s1)
+    s0 = layers[0].forward(entradas)
+    layers[1].training = False
+    s1 = layers[1].forward(s0)
+    s2 = layers[2].forward(s1)
 
     predictions = np.argmax(s2, axis=1)
     accuracy = np.mean(predictions == labelsT)
@@ -119,7 +134,7 @@ def guardarEnArchivos(nombre):
 if args.file:
     AdjustLayers(args.file)
 
-train_minibatch(capas, optimizer, entradas, y, labels, 128, 10)
+train_minibatch(capas, optimizer, entradas, y, labels, 128, 2)
 
 if args.save:
     guardarEnArchivos(args.save)

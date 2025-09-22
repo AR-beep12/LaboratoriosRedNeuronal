@@ -34,6 +34,7 @@ layer2.bias = np.array(capas[1]["b"]).T
 salida1 = layer1.forward(DIma)
 salida2 = layer2.forward(salida1)
 
+#Accuracy
 predictions = np.argmax(salida2, axis=1)
 accuracy = np.mean(predictions == labelsD)
 print("Precisión:", accuracy*100)
