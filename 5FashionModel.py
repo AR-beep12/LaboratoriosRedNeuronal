@@ -33,9 +33,9 @@ capas = [
         DnnLib.DenseLayer(128, 10, DnnLib.ActivationType.SOFTMAX)
     ]
 
-optimizer = DnnLib.Adam(learning_rate=0.001)
-capas[0].set_regularizer(DnnLib.RegularizerType.L2, 0.01)
-capas[2].set_regularizer(DnnLib.RegularizerType.L2, 0.01)
+optimizer = DnnLib.Adam(learning_rate=0.01)
+capas[0].set_regularizer(DnnLib.RegularizerType.L2, 0.00001)
+capas[2].set_regularizer(DnnLib.RegularizerType.L2, 0.00001)
 
 def AdjustLayers(nombre):
     try:
@@ -78,9 +78,9 @@ def train_minibatch(layers, optimizer, Entradas, y, targets, batch_size=128, epo
             
             #Loss
             loss = DnnLib.cross_entropy(output, y_batch)
-            reg_loss += layers[0].compute_regularization_loss()
-            reg_loss += layers[2].compute_regularization_loss()
-            print(f"loss {loss}, Reg Loss: {reg_loss:.6f}")
+            batch_reg_loss = 0.0
+            batch_reg_loss += layers[0].compute_regularization_loss()
+            batch_reg_loss += layers[2].compute_regularization_loss()
             
             #Backpropagation
             grad = DnnLib.softmax_crossentropy_gradient(output_lin, y_batch)
@@ -93,11 +93,13 @@ def train_minibatch(layers, optimizer, Entradas, y, targets, batch_size=128, epo
                     optimizer.update(layer)
                 
             epoch_loss += loss
+            reg_loss += batch_reg_loss
             n_batches += 1
             
-        avg_loss = epoch_loss + reg_loss / n_batches
+        avg_loss = epoch_loss / n_batches
+        avg_reg_loss = reg_loss / n_batches
         accuracy = test(layers)
-        print(f"Epoch {epoch}, Avg Loss: {avg_loss:.6f}, Accuracy: {accuracy}")
+        print(f"Epoch {epoch}, Avg Loss: {avg_loss:.6f}, avg Reg loss: {avg_reg_loss:.6f} Accuracy: {accuracy}")
 
 def test(layers):
     data = np.load("Datasets/fashion_mnist_test.npz")
@@ -122,7 +124,7 @@ def guardarEnArchivos(nombre):
             "preprocess": {"scale": 255.0},
             "layers":[
                 {"type":"dense","units": 128,"activation": "relu","W":capas[0].weights.T.tolist(),"b":capas[0].bias.T.tolist()},
-                {"type":"dense","units": 10,"activation":"softmax","W":capas[1].weights.T.tolist(),"b":capas[1].bias.T.tolist()}
+                {"type":"dense","units": 10,"activation":"softmax","W":capas[2].weights.T.tolist(),"b":capas[2].bias.T.tolist()}
             ]
         }
         with open(nombre + ".json", "w") as f:
@@ -134,7 +136,7 @@ def guardarEnArchivos(nombre):
 if args.file:
     AdjustLayers(args.file)
 
-train_minibatch(capas, optimizer, entradas, y, labels, 128, 2)
+train_minibatch(capas, optimizer, entradas, y, labels, 128, 10)
 
 if args.save:
     guardarEnArchivos(args.save)

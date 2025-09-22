@@ -102,7 +102,7 @@ def test(layers):
     accuracy = np.mean(predictions == labelsT)
     return accuracy
 
-#test
+
 def guardarEnArchivos(nombre):
     try:
         info = {
